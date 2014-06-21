@@ -60,12 +60,85 @@ static ssize_t reverse_read(struct file *file, char __user * out,
                 return result;
 }
 
+static inline char *reverse_word(char *start, char *end)
+{
+        char *orig_start = start, tmp;
+
+
+        for (; start < end; start++, end--) {
+                tmp = *start;
+                *start = *end;
+                *end = tmp;
+        }
+        
+        return orig_start;
+}
+
+static char *reverse_phrase(char *start, char *end)
+{
+        char *word_start = start, *word_end = NULL;
+
+        while ((word_end = memchr(word_start, ' ', end - word_start)) != NULL) {
+                reverse_word(word_start, word_end - 1);
+                word_start = word_end + 1;
+        }
+
+        reverse_word(word_start, end);
+
+        return reverse_word(start, end);
+}
+
+static ssize_t reverse_write(struct file *file, const char __user * in,
+        size_t size, loff_t * off)
+{
+        struct buffer *buf = file->private_data;
+        ssize_t result;
+
+        if (size > buffer_size) {
+                result = -EFBIG;
+                goto out;
+        }
+
+        if (copy_from_user(buf->data, in, size)) {
+                result = -EFAULT;
+                goto out;
+        }
+
+        buf->end = buf->data + size;
+        buf->read_ptr = buf->data;
+
+        if (buf->end > buf->data)
+                reverse_phrase(buf->data, buf->end -1);
+        
+        wake_up_interruptible(&buf->read_queue);
+
+        result = size;
+
+        out:
+                return result;
+}
+
 static int reverse_open(struct inode *inode, struct file *file)
 {
         int err = 0;
         file->private_data = buffer_alloc(buffer_size);
 
         return err;
+}
+
+static void buffer_free(struct buffer *buffer)
+{
+        kfree(buffer->data);
+        kfree(buffer);
+}
+
+static int reverse_close(struct inode *inode, struct file *file)
+{
+        struct buffer *buf = file->private_data;
+
+        buffer_free(buf);
+
+        return 0;
 }
 
 static struct file_operations reverse_fops = {

@@ -5,3 +5,4 @@
 *.symvers
 *.o
 *.order
+*.swp

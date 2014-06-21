@@ -20,6 +20,7 @@ MODULE_PARM_DESC(buffer_size, "Internal buffer size");
 
 struct buffer {
         wait_queue_head_t read_queue;
+        struct mutex lock;
         char *data, *end, *read_ptr;
         unsigned long size;
 };
@@ -27,14 +28,25 @@ struct buffer {
 static struct buffer *buffer_alloc(unsigned long size)
 {
         struct buffer *buf = NULL;
+
         buf = kzalloc(sizeof(*buf), GFP_KERNEL);
         if (unlikely(!buf))
                 goto out;
 
+        buf->data = kzalloc(size, GFP_KERNEL);
+        if (unlikely(!buf->data))
+                goto out_free;
+
         init_waitqueue_head(&buf->read_queue);
 
-        out:
-                return buf;
+        buf->size = size;
+
+out:
+        return buf;
+
+out_free:
+        kfree(buf);
+        return NULL;
 }
 
 static ssize_t reverse_read(struct file *file, char __user * out,

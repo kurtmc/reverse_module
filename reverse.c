@@ -1,10 +1,13 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>  /* module_param() and MODULE_PARM_DESC() */
+
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
+#include <linux/string.h> /* memchr() function */
 #include <linux/sched.h>
-#include<linux/slab.h> /* for using kzalloc() */
+#include <linux/slab.h> /* for using kzalloc() */
 #include <linux/uaccess.h> /* for copy_from_user() */
 
 MODULE_LICENSE("GPL");
@@ -144,6 +147,9 @@ static int reverse_close(struct inode *inode, struct file *file)
 static struct file_operations reverse_fops = {
         .owner = THIS_MODULE,
         .open = reverse_open,
+        .read = reverse_read,
+        .write = reverse_write,
+        .release = reverse_close,
         .llseek = noop_llseek
 };
 
